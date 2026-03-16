@@ -1,7 +1,8 @@
 # scar-gazetteer-tools
+Collection of tools and templates to assist with administering the [SCAR Composite Gazetteer or Antarctica (CGA)](https://placenames.aq).
 
 ## csv2sql
-Creates SQL insert/update transactions based on provided CSV files. Applies basic formatting (trimming strings, etc), type casting, and some validation.
+Creates SQL files containing insert/update transactions based on provided CSV files. Applies basic formatting (trimming strings, etc), type casting, and validation (coordinates, originating gazetteer, feature type). Useful for preparing bulk inserts and updates to the SCAR CGA.
 
 ### Installation
 ```bash
@@ -17,5 +18,12 @@ pip install -r requirements.txt
 
 ### Usage
 ```bash
-python csv2sql.py --file place_names.csv --output place_names_insert.sql
+# Generate an insert transaction
+python csv2sql.py --input place_names.csv --output place_names_insert.sql
+
+# Generate an update transaction
+python csv2sql.py --input place_names.csv --output place_names_update.sql --mode update
+
+# Generate an update transaction, including clearing empty fields
+python csv2sql.py --input place_names.csv --output place_names_update.sql --mode update --nullify-blanks
 ```
