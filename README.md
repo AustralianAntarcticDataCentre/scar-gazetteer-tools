@@ -27,6 +27,6 @@ python csv2sql.py --input place_names.csv --output place_names_update.sql --mode
 # Generate an update transaction, including clearing empty fields
 python csv2sql.py --input place_names.csv --output place_names_update.sql --mode update --nullify-blanks
 
-# Generate a transaction, header on 2nd row (default 1st row)
+# Generate an update transaction, where the source CSV has the headers on row 1 (default is row 0)
 python csv2sql.py --input place_names.csv --output place_names_update.sql --mode update --header-row 1
 ```

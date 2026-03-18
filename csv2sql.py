@@ -1,9 +1,10 @@
 """
 Gazetteer Excel/CSV → SQL INSERT/UPDATE generator
 
-Reads a source sheet (with x number of header rows (chage in column header row)) of place names submitted,
-normalizes and validates key fields, looks up supporting codes
-from the database, and writes an INSERT/UPDATE script for the 'gazetteer.place_names' table.
+Reads a source sheet (with x number of header rows (change in column header row)) of place names submitted,
+normalizes and validates key fields, looks up supporting codes from the database, 
+and writes an INSERT/UPDATE script for the 'gazetteer.place_names' table.
+
 """
 
 import os
