@@ -172,7 +172,7 @@ def validate_row(row, row_id, warn_missing=True):
 
         if lat is not None or lon is not None:
             if validate_coords(lat, lon):
-                result["geometry"] = f"ST_SetSRID(ST_MakePoint({lon},{lat}),4326)"
+                result["geometry"] = sql.SQL("ST_SetSRID(ST_MakePoint({lon}, {lat}), 4326)").format(lon=sql.Literal(lon), lat=sql.Literal(lat))
             else:
                 log.error("Row %s: invalid coordinates", row_id)
                 return None
@@ -279,8 +279,8 @@ def build_insert(df, out_path):
 
             query = sql.SQL("INSERT INTO {schema}.place_names ({columns}) VALUE ({values})").format(
                 schema=sql.Identifier(SCHEMA),
-                columns=sql.SQL(',').join(map(lambda col: sql.Identifier(col), validated.keys())),
-                values=sql.SQL(',').join(map(lambda val: sql.Literal(val), validated.values()))
+                columns=sql.SQL(', ').join(map(lambda col: sql.Identifier(col), validated.keys())),
+                values=sql.SQL(', ').join(map(lambda val: val if isinstance(val, sql.Composed) else sql.Literal(val), validated.values()))
             )
             
             f.write(f"{query.as_string(db())};\n")
@@ -327,7 +327,7 @@ def build_update(df, out_path, nullify_blanks, id_col="name_id"):
             query = sql.SQL("UPDATE {schema}.place_names SET {data} WHERE id = {id}").format(
                 schema=sql.Identifier(SCHEMA),
                 data=sql.SQL(', ').join(
-                    sql.Composed([sql.Identifier(k), sql.SQL(" = "), sql.Literal(v)]) for k, v in validated.items()
+                    sql.Composed([sql.Identifier(col), sql.SQL(" = "), val if isinstance(val, sql.Composed) else sql.Literal(val)]) for col, val in validated.items()
                 ),
                 id=sql.Literal(name_id)
             )
