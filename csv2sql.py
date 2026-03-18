@@ -302,12 +302,12 @@ def build_update(df, out_path, nullify_blanks, id_col="name_id"):
 
         for idx, row in df.iterrows():
             try:
-                name_id = int(row.get("name_id"))
+                name_id = int(row.get(id_col))
             except Exception:
                 name_id = None
 
             if not name_id:
-                log.error("Row %s skipped: missing 'name_id'", idx + 1)
+                log.error("Row %s skipped: missing '%s'", idx + 1, id_col)
                 skipped += 1
                 continue
 
