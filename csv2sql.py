@@ -55,7 +55,7 @@ def to_date(v):
     if pd.isna(v):
         return None
 
-    dt = pd.to_datetime(v)
+    dt = pd.to_datetime(v, dayfirst=True)
     
     return dt.date().isoformat()
 
@@ -66,12 +66,19 @@ def clean_str(val):
 
     return str(val).strip() or None
 
-# cleans numeric fields as valid floats
+# cleans numeric fields as floats
 def clean_float(val):
     if pd.isna(val):
         return None
     
     return float(val)
+
+# cleans numeric fields as ints
+def clean_int(val):
+    if pd.isna(val):
+        return None
+    
+    return int(val)
 
 # validates lat/lngs
 def validate_coords(lat, lon):
@@ -150,16 +157,12 @@ def validate_row(row, row_id, warn_missing=True):
 
     # place_id
     if "place_id" in row_keys:
-        place_id = clean_str(row.get("place_id"))
-
-        if place_id:
-            try:
-                result["place_id"] = int(place_id)
-            except Exception:
-                log.error("Row %s: string to int conversion error on 'place_id'", row_id)
-                return None
-        else:
-            result["place_id"] = None
+        try:
+            if (place_id := clean_int(row.get("place_id"))) is not None:
+                result["place_id"] = place_id
+        except Exception:
+            log.error("Row %s: string to int conversion error on 'place_id'", row_id)
+            return None
 
     # coordinates
     if "latitude" in row_keys and "longitude" in row_keys:
@@ -185,11 +188,11 @@ def validate_row(row, row_id, warn_missing=True):
     # feature_type_code
     # converts a feature type name to a feature type code
     if "feature_type_name" in row_keys:
-        feature_type_name = (clean_str(row.get("feature_type_name")) or "").casefold()
+        feature_type_name = clean_str(row.get("feature_type_name"))
 
         if feature_type_name:
-            if feature_type_name in feature_types:
-                result["feature_type_code"] = feature_types[feature_type_name]
+            if feature_type_name.casefold() in feature_types:
+                result["feature_type_code"] = feature_types[feature_type_name.casefold()]
             else:
                 log.error("Row %s: feature type not found '%s'", row_id, feature_type_name)
                 return None
@@ -277,7 +280,7 @@ def build_insert(df, out_path):
                 skipped += 1
                 continue
 
-            query = sql.SQL("INSERT INTO {schema}.place_names ({columns}) VALUE ({values})").format(
+            query = sql.SQL("INSERT INTO {schema}.place_names ({columns}) VALUES ({values})").format(
                 schema=sql.Identifier(SCHEMA),
                 columns=sql.SQL(', ').join(map(lambda col: sql.Identifier(col), validated.keys())),
                 values=sql.SQL(', ').join(map(lambda val: val if isinstance(val, sql.Composed) else sql.Literal(val), validated.values()))
