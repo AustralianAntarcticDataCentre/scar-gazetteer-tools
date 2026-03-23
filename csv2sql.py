@@ -257,7 +257,7 @@ def validate_row(row, row_id, warn_missing=True):
     # date_approved
     if "date_approved" in row_keys:
         try:
-            result["date_approved"] = to_date(clean_str(row.get("date_approved")))
+            result["date_named"] = to_date(clean_str(row.get("date_approved")))
         except Exception:
             log.error("Row %s: string to date conversion error in 'date_approved'", row_id)
             return None
@@ -327,7 +327,7 @@ def build_update(df, out_path, nullify_blanks, id_col="name_id"):
                 skipped += 1
                 continue
 
-            query = sql.SQL("UPDATE {schema}.place_names SET {data} WHERE id = {id}").format(
+            query = sql.SQL("UPDATE {schema}.place_names SET {data} WHERE name_id = {id}").format(
                 schema=sql.Identifier(SCHEMA),
                 data=sql.SQL(', ').join(
                     sql.Composed([sql.Identifier(col), sql.SQL(" = "), val if isinstance(val, sql.Composed) else sql.Literal(val)]) for col, val in validated.items()
