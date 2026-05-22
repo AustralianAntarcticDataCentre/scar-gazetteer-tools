@@ -252,7 +252,7 @@ def validate_row(row, row_id, warn_missing=True):
     if "relic_flag" in row_keys:
         # Ignore if column is simply empty
         if clean_str(row.get("relic_flag")):
-            result["is_relic"] = to_bool(clean_str(row.get("relic_flag")))
+            result["relic_flag"] = to_bool(clean_str(row.get("relic_flag")))
 
     # date_approved
     if "date_approved" in row_keys:
