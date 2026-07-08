@@ -104,6 +104,9 @@ def load_table(path: Path, sheet: str | None, header_row: int):
         df = xls.parse(sheet_name=sheet, header=header_row)
     else:
         raise ValueError("Unsupported file type")
+    
+    # Remove completely empty rows (removes formatting of cells)
+    df = df.dropna(how="all")
 
     df.columns = [str(c).strip().casefold() for c in df.columns]
 
@@ -141,13 +144,6 @@ def validate_row(row, row_id, warn_missing=True):
     feature_types = get_feature_types()
     gazetteers = get_gazetteers()
 
-    # place_name_gazetteer
-    if "place_name_gazetteer" in row_keys:
-        result["place_name_gazetteer"] = clean_str(row.get("place_name_gazetteer"))
-    
-    if not result.get("place_name_gazetteer") and warn_missing:
-        log.warning("Row %s: missing 'place_name_gazetteer'", row_id)
-
     # place_name_mapping
     if "place_name_mapping" in row_keys:
         result["place_name_mapping"] = clean_str(row.get("place_name_mapping"))
@@ -155,36 +151,44 @@ def validate_row(row, row_id, warn_missing=True):
     if not result.get("place_name_mapping") and warn_missing:
         log.warning("Row %s: missing 'place_name_mapping'", row_id)
 
-    # place_id
-    if "place_id" in row_keys:
-        try:
-            if (place_id := clean_int(row.get("place_id"))) is not None:
-                result["place_id"] = place_id
-        except Exception:
-            log.error("Row %s: string to int conversion error on 'place_id'", row_id)
-            return None
-
-    # coordinates
-    if "latitude" in row_keys and "longitude" in row_keys:
-        try:
-            lat = clean_float(row.get("latitude"))
-            lon = clean_float(row.get("longitude"))
-        except Exception:
-            log.error("Row %s: string to float conversion error on 'latitude' or 'longitude'", row_id)
-            return None
-
-        if lat is not None or lon is not None:
-            if validate_coords(lat, lon):
-                result["geometry"] = sql.SQL("ST_SetSRID(ST_MakePoint({lon}, {lat}), 4326)").format(lon=sql.Literal(lon), lat=sql.Literal(lat))
-            else:
-                log.error("Row %s: invalid coordinates", row_id)
-                return None
-        else:
-            result["geometry"] = None
+    # place_name_gazetteer
+    if "place_name_gazetteer" in row_keys:
+        result["place_name_gazetteer"] = clean_str(row.get("place_name_gazetteer"))
     
-    if not result.get('geometry') and warn_missing:
-        log.warning("Row %s: missing 'geometry'", row_id)
+    if not result.get("place_name_gazetteer") and warn_missing:
+        log.warning("Row %s: missing 'place_name_gazetteer'", row_id)
 
+       
+    # altitude
+    if "altitude_above_msl" in row_keys:
+        try:
+            result["altitude"] = clean_float(row.get("altitude_above_msl"))
+        except Exception:
+            log.error("Row %s: string to float conversion error in 'altitude'", row_id)
+            return None
+        
+    # altitude_accuracy
+    if "altitude_accuracy" in row_keys:
+        try:
+            result["altitude_accuracy"] = clean_float(row.get("altitude_accuracy"))
+        except Exception:
+            log.error("Row %s: string to float conversion error in 'altitude_accuracy'", row_id)
+            return None
+    
+    # comments
+    if "comments" in row_keys:
+        result["comments"] = clean_str(row.get("comments"))
+
+    # country name column is not used - see gazetteer
+    
+    # date_approved
+    if "date_approved" in row_keys:
+        try:
+            result["date_named"] = to_date(clean_str(row.get("date_approved")))
+        except Exception:
+            log.error("Row %s: string to date conversion error in 'date_approved'", row_id)
+            return None
+    
     # feature_type_code
     # converts a feature type name to a feature type code
     if "feature_type_name" in row_keys:
@@ -220,47 +224,65 @@ def validate_row(row, row_id, warn_missing=True):
     if not result.get('gazetteer') and warn_missing:
         log.warning("Row %s: missing 'gazetteer'", row_id)
 
-    # altitude
-    if "altitude" in row_keys:
+    # coordinates
+    if "latitude" in row_keys and "longitude" in row_keys:
         try:
-            result["altitude"] = clean_float(row.get("altitude"))
+            lat = clean_float(row.get("latitude"))
+            lon = clean_float(row.get("longitude"))
         except Exception:
-            log.error("Row %s: string to float conversion error in 'altitude'", row_id)
+            log.error("Row %s: string to float conversion error on 'latitude' or 'longitude'", row_id)
             return None
 
-    # altitude_accuracy
-    if "altitude_accuracy" in row_keys:
-        try:
-            result["altitude_accuracy"] = clean_float(row.get("altitude_accuracy"))
-        except Exception:
-            log.error("Row %s: string to float conversion error in 'altitude_accuracy'", row_id)
-            return None
+        if lat is not None or lon is not None:
+            if validate_coords(lat, lon):
+                result["geometry"] = sql.SQL("ST_SetSRID(ST_MakePoint({lon}, {lat}), 4326)").format(lon=sql.Literal(lon), lat=sql.Literal(lat))
+            else:
+                log.error("Row %s: invalid coordinates", row_id)
+                return None
+        else:
+            result["geometry"] = None
+    
+    if not result.get('geometry') and warn_missing:
+        log.warning("Row %s: missing 'geometry'", row_id)
 
     # named_for
     if "named_for" in row_keys:
         result["named_for"] = clean_str(row.get("named_for"))
 
-    # comments
-    if "comments" in row_keys:
-        result["comments"] = clean_str(row.get("comments"))
+    # narrative (now called feature description)
+    if "feature_description" in row_keys:
+        result["narrative"] = clean_str(row.get("feature_description"))
+    
+    # place_id
+    if "place_id" in row_keys:
+        try:
+            if (place_id := clean_int(row.get("place_id"))) is not None:
+                result["place_id"] = place_id
+        except Exception:
+            log.error("Row %s: string to int conversion error on 'place_id'", row_id)
+            return None
+    
+    #  source identifier
+    if "source_identifier" in row_keys:
+        result["source_identifier"] = clean_str(row.get("source_identifier"))
 
-    # narrative
-    if "narrative" in row_keys:
-        result["narrative"] = clean_str(row.get("narrative"))
+    #  source name
+    if "source_name" in row_keys:
+        result["source_name"] = clean_str(row.get("source_name"))
+
+    #  source publisher
+    if "source_publisher" in row_keys:
+        result["source_publisher"] = clean_str(row.get("source_publisher"))
+
+    #  source scale
+    if "source_scale" in row_keys:
+        result["source_scale"] = clean_str(row.get("source_scale"))
     
     # relic_flag
     if "relic_flag" in row_keys:
         # Ignore if column is simply empty
         if clean_str(row.get("relic_flag")):
             result["relic_flag"] = to_bool(clean_str(row.get("relic_flag")))
-
-    # date_approved
-    if "date_approved" in row_keys:
-        try:
-            result["date_named"] = to_date(clean_str(row.get("date_approved")))
-        except Exception:
-            log.error("Row %s: string to date conversion error in 'date_approved'", row_id)
-            return None
 
     return result
 
